@@ -1,89 +1,91 @@
-# Obsidian Sample Plugin
+# whying Plugin
 
-This is a sample plugin for Obsidian (https://obsidian.md).
+A lightweight Obsidian plugin that adds two focused editor utilities:
 
-This project uses TypeScript to provide type checking and documentation.
-The repo depends on the latest plugin API (obsidian.d.ts) in TypeScript Definition format, which contains TSDoc comments describing what it does.
+- Heading-based folding commands for Markdown notes
+- Per-tab zoom controls with persistent zoom records
 
-This sample plugin demonstrates some of the basic functionality the plugin API can do.
-- Adds a ribbon icon, which shows a Notice when clicked.
-- Adds a command "Open modal (simple)" which opens a Modal.
-- Adds a plugin setting tab to the settings page.
-- Registers a global click event and output 'click' to the console.
-- Registers a global interval which logs 'setInterval' to the console.
+[简体中文](README.zh-CN.md)
 
-## First time developing plugins?
+## Features
 
-Quick starting guide for new plugin devs:
+### Heading fold
 
-- Check if [someone already developed a plugin for what you want](https://obsidian.md/plugins)! There might be an existing plugin similar enough that you can partner up with.
-- Make a copy of this repo as a template with the "Use this template" button (login to GitHub if you don't see it).
-- Clone your repo to a local development folder. For convenience, you can place this folder in your `.obsidian/plugins/your-plugin-name` folder.
-- Install NodeJS, then run `npm i` in the command line under your repo folder.
-- Run `npm run dev` to compile your plugin from `main.ts` to `main.js`.
-- Make changes to `main.ts` (or create new `.ts` files). Those changes should be automatically compiled into `main.js`.
-- Reload Obsidian to load the new version of your plugin.
-- Enable plugin in settings window.
-- For updates to the Obsidian API run `npm update` in the command line under your repo folder.
+- Fold the current note to any heading depth from `H1` to `H6`
+- Increase or decrease the current fold depth with commands
+- Unfold all headings in the active editor
 
-## Releasing new releases
+### Tab zoom
 
-- Update `manifest.json` with the new version number and the minimum Obsidian version required for that release.
-- Run `npm version patch`, `npm version minor`, or `npm version major`.
-- Push the commit and tag with `git push --follow-tags`.
-- GitHub Actions will validate the tag, build the plugin, create or update the GitHub Release, and upload `main.js`, `manifest.json`, and `styles.css` when present.
+- Zoom the active tab in or out
+- Save zoom level per tab and restore it after layout reload
+- Reset the current tab or all tabs back to the default zoom
+- Optionally show the current zoom percentage in the status bar
 
-> This repo sets `tag-version-prefix=""` in `.npmrc`, so `npm version patch` creates a tag like `0.0.2` instead of `v0.0.2`.
-> The release workflow fails fast when the tag, `package.json`, `manifest.json`, and `versions.json` do not match.
+## Commands
 
-## Adding your plugin to the community plugin list
+The plugin registers the following commands:
 
-- Check the [plugin guidelines](https://docs.obsidian.md/Plugins/Releasing/Plugin+guidelines).
-- Publish an initial version.
-- Make sure you have a `README.md` file in the root of your repo.
-- Make a pull request at https://github.com/obsidianmd/obsidian-releases to add your plugin.
+- `Fold to H1`
+- `Fold to H2`
+- `Fold to H3`
+- `Fold to H4`
+- `Fold to H5`
+- `Fold to H6`
+- `Unfold all headings`
+- `Increase fold level`
+- `Decrease fold level`
+- `Zoom in current tab`
+- `Zoom out current tab`
+- `Reset current tab zoom`
+- `Reset all tabs zoom`
 
-## How to use
+## Settings
 
-- Clone this repo.
-- Make sure your NodeJS is at least v20 (`node --version`).
-- `npm install` to install dependencies.
-- `npm run dev` to start compilation in watch mode.
+Each feature can be enabled or disabled independently in the plugin settings.
 
-## Manually installing the plugin
+For tab zoom, the following options are available:
 
-- Copy over `main.js`, `styles.css`, `manifest.json` to your vault `VaultFolder/.obsidian/plugins/your-plugin-id/`.
+- Default zoom percentage for new tabs
+- Zoom step used by zoom in and zoom out commands
+- Minimum and maximum allowed zoom
+- Status bar visibility
+- Clear all saved zoom records
 
-## Improve code quality with eslint
-- [ESLint](https://eslint.org/) is a tool that analyzes your code to quickly find problems. You can run ESLint against your plugin to find common bugs and ways to improve your code. 
-- This project already has eslint preconfigured, you can invoke a check by running`npm run lint`
-- Together with a custom eslint [plugin](https://github.com/obsidianmd/eslint-plugin) for Obsidan specific code guidelines.
-- GitHub Actions are preconfigured to lint commits on all branches and publish build artifacts on release tags.
+## Installation
 
-## Funding URL
+### Manual installation
 
-You can include funding URLs where people who use your plugin can financially support it.
+Copy the release files into your vault:
 
-The simple way is to set the `fundingUrl` field to your link in your `manifest.json` file:
+`<Vault>/.obsidian/plugins/whying-plugin/`
 
-```json
-{
-    "fundingUrl": "https://buymeacoffee.com"
-}
-```
+Required files:
 
-If you have multiple URLs, you can also do:
+- `main.js`
+- `manifest.json`
+- `styles.css`
 
-```json
-{
-    "fundingUrl": {
-        "Buy Me a Coffee": "https://buymeacoffee.com",
-        "GitHub Sponsor": "https://github.com/sponsors",
-        "Patreon": "https://www.patreon.com/"
-    }
-}
-```
+Then reload Obsidian and enable the plugin in **Settings → Community plugins**.
 
-## API Documentation
+### Local development
 
-See https://docs.obsidian.md
+1. Clone this repository into `<Vault>/.obsidian/plugins/whying-plugin/`
+2. Run `npm install`
+3. Run `npm run dev`
+4. Reload Obsidian and enable the plugin
+
+## Development
+
+- `npm run dev` builds in watch mode
+- `npm run build` runs a production build
+- `npm run lint` runs ESLint
+
+## Notes
+
+- Plugin data is stored locally with Obsidian's `loadData()` and `saveData()` APIs
+- `manifest.json` currently sets `isDesktopOnly` to `false`
+
+## License
+
+0BSD
