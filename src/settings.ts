@@ -1,36 +1,50 @@
-import {App, PluginSettingTab, Setting} from "obsidian";
-import MyPlugin from "./main";
+import { App, Plugin, PluginSettingTab, Setting } from "obsidian";
+import type { Feature } from "./features/feature";
 
-export interface MyPluginSettings {
-	mySetting: string;
+export interface WhyingPluginSettings {
+	enabledFeatures: Record<string, boolean>;
 }
 
-export const DEFAULT_SETTINGS: MyPluginSettings = {
-	mySetting: 'default'
+export const DEFAULT_SETTINGS: WhyingPluginSettings = {
+	enabledFeatures: {},
+};
+
+export interface SettingTabContext {
+	features: Feature[];
+	settings: WhyingPluginSettings;
+	isFeatureEnabled(featureId: string): boolean;
+	enableFeature(feature: Feature): void;
+	saveSettings(): Promise<void>;
 }
 
-export class SampleSettingTab extends PluginSettingTab {
-	plugin: MyPlugin;
+export class WhyingSettingTab extends PluginSettingTab {
+	private ctx: SettingTabContext;
 
-	constructor(app: App, plugin: MyPlugin) {
+	constructor(app: App, plugin: Plugin, ctx: SettingTabContext) {
 		super(app, plugin);
-		this.plugin = plugin;
+		this.ctx = ctx;
 	}
 
 	display(): void {
-		const {containerEl} = this;
-
+		const { containerEl } = this;
 		containerEl.empty();
 
-		new Setting(containerEl)
-			.setName('Settings #1')
-			.setDesc('It\'s a secret')
-			.addText(text => text
-				.setPlaceholder('Enter your secret')
-				.setValue(this.plugin.settings.mySetting)
-				.onChange(async (value) => {
-					this.plugin.settings.mySetting = value;
-					await this.plugin.saveSettings();
-				}));
+		for (const feature of this.ctx.features) {
+			new Setting(containerEl)
+				.setName(feature.name)
+				.addToggle((toggle) =>
+					toggle
+						.setValue(this.ctx.isFeatureEnabled(feature.id))
+						.onChange(async (value) => {
+							this.ctx.settings.enabledFeatures[feature.id] = value;
+							await this.ctx.saveSettings();
+							if (value) {
+								this.ctx.enableFeature(feature);
+							} else {
+								feature.onunload();
+							}
+						})
+				);
+		}
 	}
 }
