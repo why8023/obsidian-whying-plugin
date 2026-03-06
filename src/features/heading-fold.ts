@@ -84,6 +84,21 @@ export class HeadingFoldFeature implements Feature {
 		return match ? match[1]!.length : 0;
 	}
 
+	private getDeepestHeadingLevel(editorView: EditorView): number | null {
+		const { doc } = editorView.state;
+		let deepestHeadingLevel = 0;
+
+		for (let lineNum = 1; lineNum <= doc.lines; lineNum++) {
+			const line = doc.line(lineNum);
+			const headingLevel = this.getHeadingLevel(line.text);
+			if (headingLevel > deepestHeadingLevel) {
+				deepestHeadingLevel = headingLevel;
+			}
+		}
+
+		return deepestHeadingLevel === 0 ? null : deepestHeadingLevel;
+	}
+
 	private detectCurrentFoldLevel(editorView: EditorView): number {
 		const state = editorView.state;
 		const doc = state.doc;
@@ -176,16 +191,34 @@ export class HeadingFoldFeature implements Feature {
 			return;
 		}
 
+		const deepestHeadingLevel = this.getDeepestHeadingLevel(editorView);
+		if (deepestHeadingLevel === null) {
+			new Notice("No headings found");
+			return;
+		}
+
 		const currentLevel = this.detectCurrentFoldLevel(editorView);
+		const isFullyUnfolded = currentLevel > deepestHeadingLevel;
 
 		if (delta > 0) {
-			const newLevel = currentLevel + 1;
-			if (newLevel > 6) {
+			if (isFullyUnfolded) {
 				this.unfoldAll(editor);
 				return;
 			}
+
+			const newLevel = currentLevel + 1;
+			if (newLevel > deepestHeadingLevel) {
+				this.unfoldAll(editor);
+				return;
+			}
+
 			this.foldToLevel(editor, newLevel);
 		} else {
+			if (isFullyUnfolded) {
+				this.foldToLevel(editor, deepestHeadingLevel);
+				return;
+			}
+
 			const newLevel = currentLevel - 1;
 			if (newLevel < 1) {
 				this.foldToLevel(editor, 1);
