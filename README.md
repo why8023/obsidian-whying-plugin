@@ -28,14 +28,13 @@ Quick starting guide for new plugin devs:
 
 ## Releasing new releases
 
-- Update your `manifest.json` with your new version number, such as `1.0.1`, and the minimum Obsidian version required for your latest release.
-- Update your `versions.json` file with `"new-plugin-version": "minimum-obsidian-version"` so older versions of Obsidian can download an older version of your plugin that's compatible.
-- Create new GitHub release using your new version number as the "Tag version". Use the exact version number, don't include a prefix `v`. See here for an example: https://github.com/obsidianmd/obsidian-sample-plugin/releases
-- Upload the files `manifest.json`, `main.js`, `styles.css` as binary attachments. Note: The manifest.json file must be in two places, first the root path of your repository and also in the release.
-- Publish the release.
+- Update `manifest.json` with the new version number and the minimum Obsidian version required for that release.
+- Run `npm version patch`, `npm version minor`, or `npm version major`.
+- Push the commit and tag with `git push --follow-tags`.
+- GitHub Actions will validate the tag, build the plugin, create or update the GitHub Release, and upload `main.js`, `manifest.json`, and `styles.css` when present.
 
-> You can simplify the version bump process by running `npm version patch`, `npm version minor` or `npm version major` after updating `minAppVersion` manually in `manifest.json`.
-> The command will bump version in `manifest.json` and `package.json`, and add the entry for the new version to `versions.json`
+> This repo sets `tag-version-prefix=""` in `.npmrc`, so `npm version patch` creates a tag like `0.0.2` instead of `v0.0.2`.
+> The release workflow fails fast when the tag, `package.json`, `manifest.json`, and `versions.json` do not match.
 
 ## Adding your plugin to the community plugin list
 
@@ -47,8 +46,8 @@ Quick starting guide for new plugin devs:
 ## How to use
 
 - Clone this repo.
-- Make sure your NodeJS is at least v16 (`node --version`).
-- `npm i` or `yarn` to install dependencies.
+- Make sure your NodeJS is at least v20 (`node --version`).
+- `npm install` to install dependencies.
 - `npm run dev` to start compilation in watch mode.
 
 ## Manually installing the plugin
@@ -59,7 +58,7 @@ Quick starting guide for new plugin devs:
 - [ESLint](https://eslint.org/) is a tool that analyzes your code to quickly find problems. You can run ESLint against your plugin to find common bugs and ways to improve your code. 
 - This project already has eslint preconfigured, you can invoke a check by running`npm run lint`
 - Together with a custom eslint [plugin](https://github.com/obsidianmd/eslint-plugin) for Obsidan specific code guidelines.
-- A GitHub action is preconfigured to automatically lint every commit on all branches.
+- GitHub Actions are preconfigured to lint commits on all branches and publish build artifacts on release tags.
 
 ## Funding URL
 

@@ -1,0 +1,50 @@
+name: Release plugin
+
+on:
+    push:
+        tags:
+            - "*.*.*"
+
+permissions:
+    contents: write
+
+jobs:
+    release:
+        runs-on: ubuntu-latest
+
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  fetch-depth: 0
+
+            - name: Use Node.js 22.x
+              uses: actions/setup-node@v4
+              with:
+                  node-version: 22.x
+                  cache: "npm"
+
+            - run: npm ci
+            - run: npm run release:check -- "${{ github.ref_name }}"
+            - run: npm run build
+
+            - name: Create or update GitHub release
+              env:
+                  GH_TOKEN: ${{ github.token }}
+              run: |
+                  release_files=("main.js" "manifest.json")
+                  if [[ -f "styles.css" ]]; then
+                    release_files+=("styles.css")
+                  fi
+
+                  for file in "${release_files[@]}"; do
+                    if [[ ! -f "$file" ]]; then
+                      echo "Missing release asset: $file" >&2
+                      exit 1
+                    fi
+                  done
+
+                  if gh release view "${GITHUB_REF_NAME}" > /dev/null 2>&1; then
+                    gh release upload "${GITHUB_REF_NAME}" "${release_files[@]}" --clobber
+                  else
+                    gh release create "${GITHUB_REF_NAME}" "${release_files[@]}" --generate-notes --verify-tag
+                  fi
