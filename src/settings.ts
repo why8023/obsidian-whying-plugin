@@ -1,12 +1,15 @@
 import { App, Plugin, PluginSettingTab, Setting } from "obsidian";
 import type { Feature } from "./features/feature";
+import { TAB_ZOOM_DEFAULTS, type TabZoomSettings } from "./features/tab-zoom";
 
 export interface WhyingPluginSettings {
 	enabledFeatures: Record<string, boolean>;
+	tabZoom: TabZoomSettings;
 }
 
 export const DEFAULT_SETTINGS: WhyingPluginSettings = {
 	enabledFeatures: {},
+	tabZoom: { ...TAB_ZOOM_DEFAULTS },
 };
 
 export interface SettingTabContext {
@@ -43,6 +46,66 @@ export class WhyingSettingTab extends PluginSettingTab {
 							} else {
 								feature.onunload();
 							}
+							this.display();
+						})
+				);
+		}
+
+		// --- Tab Zoom settings ---
+		if (this.ctx.isFeatureEnabled("tab-zoom")) {
+			containerEl.createEl("h3", { text: "Tab Zoom" });
+			const tz = this.ctx.settings.tabZoom;
+
+			new Setting(containerEl)
+				.setName("Default zoom")
+				.setDesc("Default zoom percentage for new tabs")
+				.addSlider((s) =>
+					s.setLimits(50, 200, 10).setValue(tz.defaultZoom).setDynamicTooltip()
+						.onChange(async (v) => { tz.defaultZoom = v; await this.ctx.saveSettings(); })
+				);
+
+			new Setting(containerEl)
+				.setName("Zoom step")
+				.setDesc("Percentage increment per zoom in/out")
+				.addSlider((s) =>
+					s.setLimits(5, 25, 5).setValue(tz.zoomStep).setDynamicTooltip()
+						.onChange(async (v) => { tz.zoomStep = v; await this.ctx.saveSettings(); })
+				);
+
+			new Setting(containerEl)
+				.setName("Min zoom")
+				.setDesc("Minimum zoom percentage")
+				.addSlider((s) =>
+					s.setLimits(10, 80, 10).setValue(tz.minZoom).setDynamicTooltip()
+						.onChange(async (v) => { tz.minZoom = v; await this.ctx.saveSettings(); })
+				);
+
+			new Setting(containerEl)
+				.setName("Max zoom")
+				.setDesc("Maximum zoom percentage")
+				.addSlider((s) =>
+					s.setLimits(150, 500, 10).setValue(tz.maxZoom).setDynamicTooltip()
+						.onChange(async (v) => { tz.maxZoom = v; await this.ctx.saveSettings(); })
+				);
+
+			new Setting(containerEl)
+				.setName("Show in status bar")
+				.setDesc("Display current zoom level in the status bar")
+				.addToggle((t) =>
+					t.setValue(tz.showStatusBar)
+						.onChange(async (v) => { tz.showStatusBar = v; await this.ctx.saveSettings(); })
+				);
+
+			const recordCount = Object.keys(tz.zoomRecords).length;
+			new Setting(containerEl)
+				.setName("Zoom records")
+				.setDesc(`${recordCount} saved file zoom records. Clear to reset all.`)
+				.addButton((b) =>
+					b.setButtonText("Clear all").setWarning()
+						.onClick(async () => {
+							tz.zoomRecords = {};
+							await this.ctx.saveSettings();
+							this.display();
 						})
 				);
 		}

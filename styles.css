@@ -1,8 +1,9 @@
-/*
+.tab-zoom-status {
+	cursor: pointer;
+	user-select: none;
+	padding: 0 4px;
+}
 
-This CSS file will be included with your plugin, and
-available in the app when your plugin is enabled.
-
-If your plugin does not need CSS, delete this file.
-
-*/
+.tab-zoom-status:hover {
+	opacity: 0.7;
+}

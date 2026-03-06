@@ -1,12 +1,14 @@
 import { Plugin } from "obsidian";
 import type { Feature } from "./features/feature";
 import { HeadingFoldFeature } from "./features/heading-fold";
+import { TabZoomFeature } from "./features/tab-zoom";
 import { WhyingSettingTab, DEFAULT_SETTINGS, type WhyingPluginSettings } from "./settings";
 
 export default class WhyingPlugin extends Plugin {
 	settings: WhyingPluginSettings = DEFAULT_SETTINGS;
 	features: Feature[] = [
 		new HeadingFoldFeature(),
+		new TabZoomFeature(),
 	];
 
 	async onload() {
