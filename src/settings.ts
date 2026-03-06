@@ -9,8 +9,72 @@ export interface WhyingPluginSettings {
 
 export const DEFAULT_SETTINGS: WhyingPluginSettings = {
 	enabledFeatures: {},
-	tabZoom: { ...TAB_ZOOM_DEFAULTS },
+	tabZoom: {
+		...TAB_ZOOM_DEFAULTS,
+		zoomRecords: { ...TAB_ZOOM_DEFAULTS.zoomRecords },
+	},
 };
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === "object" && value !== null;
+}
+
+function normalizeBooleanRecord(value: unknown): Record<string, boolean> {
+	if (!isRecord(value)) {
+		return {};
+	}
+
+	const normalized: Record<string, boolean> = {};
+
+	for (const [key, item] of Object.entries(value)) {
+		if (typeof item === "boolean") {
+			normalized[key] = item;
+		}
+	}
+
+	return normalized;
+}
+
+function normalizeNumberRecord(value: unknown): Record<string, number> {
+	if (!isRecord(value)) {
+		return {};
+	}
+
+	const normalized: Record<string, number> = {};
+
+	for (const [key, item] of Object.entries(value)) {
+		if (typeof item === "number") {
+			normalized[key] = item;
+		}
+	}
+
+	return normalized;
+}
+
+function normalizeNumber(value: unknown, fallback: number): number {
+	return typeof value === "number" ? value : fallback;
+}
+
+function normalizeBoolean(value: unknown, fallback: boolean): boolean {
+	return typeof value === "boolean" ? value : fallback;
+}
+
+export function normalizeSettings(data: unknown): WhyingPluginSettings {
+	const rawSettings = isRecord(data) ? data : {};
+	const rawTabZoom = isRecord(rawSettings.tabZoom) ? rawSettings.tabZoom : {};
+
+	return {
+		enabledFeatures: normalizeBooleanRecord(rawSettings.enabledFeatures),
+		tabZoom: {
+			defaultZoom: normalizeNumber(rawTabZoom.defaultZoom, TAB_ZOOM_DEFAULTS.defaultZoom),
+			zoomStep: normalizeNumber(rawTabZoom.zoomStep, TAB_ZOOM_DEFAULTS.zoomStep),
+			minZoom: normalizeNumber(rawTabZoom.minZoom, TAB_ZOOM_DEFAULTS.minZoom),
+			maxZoom: normalizeNumber(rawTabZoom.maxZoom, TAB_ZOOM_DEFAULTS.maxZoom),
+			showStatusBar: normalizeBoolean(rawTabZoom.showStatusBar, TAB_ZOOM_DEFAULTS.showStatusBar),
+			zoomRecords: normalizeNumberRecord(rawTabZoom.zoomRecords),
+		},
+	};
+}
 
 export interface SettingTabContext {
 	features: Feature[];
@@ -53,7 +117,9 @@ export class WhyingSettingTab extends PluginSettingTab {
 
 		// --- Tab Zoom settings ---
 		if (this.ctx.isFeatureEnabled("tab-zoom")) {
-			containerEl.createEl("h3", { text: "Tab Zoom" });
+			new Setting(containerEl)
+				.setName("Tab zoom")
+				.setHeading();
 			const tz = this.ctx.settings.tabZoom;
 
 			new Setting(containerEl)

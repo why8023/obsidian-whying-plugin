@@ -1,8 +1,8 @@
-import type { Plugin } from "obsidian";
+import type { WhyingPluginContext } from "../types";
 
 export interface Feature {
 	id: string;
 	name: string;
-	onload(plugin: Plugin): void;
+	onload(plugin: WhyingPluginContext): void;
 	onunload(): void;
 }

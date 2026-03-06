@@ -2,16 +2,17 @@ import { Plugin } from "obsidian";
 import type { Feature } from "./features/feature";
 import { HeadingFoldFeature } from "./features/heading-fold";
 import { TabZoomFeature } from "./features/tab-zoom";
-import { WhyingSettingTab, DEFAULT_SETTINGS, type WhyingPluginSettings } from "./settings";
+import { WhyingSettingTab, DEFAULT_SETTINGS, normalizeSettings, type WhyingPluginSettings } from "./settings";
+import type { WhyingPluginContext } from "./types";
 
-export default class WhyingPlugin extends Plugin {
+export default class WhyingPlugin extends Plugin implements WhyingPluginContext {
 	settings: WhyingPluginSettings = DEFAULT_SETTINGS;
 	features: Feature[] = [
 		new HeadingFoldFeature(),
 		new TabZoomFeature(),
 	];
 
-	async onload() {
+	async onload(): Promise<void> {
 		await this.loadSettings();
 		this.addSettingTab(new WhyingSettingTab(this.app, this, {
 			features: this.features,
@@ -28,7 +29,7 @@ export default class WhyingPlugin extends Plugin {
 		}
 	}
 
-	onunload() {
+	onunload(): void {
 		for (const feature of this.features) {
 			feature.onunload();
 		}
@@ -42,11 +43,12 @@ export default class WhyingPlugin extends Plugin {
 		feature.onload(this);
 	}
 
-	async loadSettings() {
-		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+	async loadSettings(): Promise<void> {
+		const loadedData: unknown = await this.loadData();
+		this.settings = normalizeSettings(loadedData);
 	}
 
-	async saveSettings() {
+	async saveSettings(): Promise<void> {
 		await this.saveData(this.settings);
 	}
 }

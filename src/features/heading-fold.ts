@@ -3,15 +3,19 @@ import { EditorView } from "@codemirror/view";
 import { StateEffect } from "@codemirror/state";
 import { foldable, foldEffect, unfoldEffect, foldedRanges } from "@codemirror/language";
 import type { Feature } from "./feature";
-import type { Plugin } from "obsidian";
+import type { WhyingPluginContext } from "../types";
+
+interface EditorWithCodeMirror {
+	cm?: unknown;
+}
 
 export class HeadingFoldFeature implements Feature {
 	id = "heading-fold";
-	name = "Heading Fold";
+	name = "Heading fold";
 	private commandIds: string[] = [];
-	private plugin: Plugin | null = null;
+	private plugin: WhyingPluginContext | null = null;
 
-	onload(plugin: Plugin): void {
+	onload(plugin: WhyingPluginContext): void {
 		this.plugin = plugin;
 
 		for (let level = 1; level <= 6; level++) {
@@ -60,7 +64,7 @@ export class HeadingFoldFeature implements Feature {
 	onunload(): void {
 		if (this.plugin) {
 			for (const id of this.commandIds) {
-				(this.plugin.app as any).commands.removeCommand(`${this.plugin.manifest.id}:${id}`);
+				this.plugin.removeCommand(`${this.plugin.manifest.id}:${id}`);
 			}
 		}
 		this.commandIds = [];
@@ -68,7 +72,7 @@ export class HeadingFoldFeature implements Feature {
 	}
 
 	private getEditorView(editor: Editor): EditorView | null {
-		const cm = (editor as any).cm;
+		const { cm } = editor as Editor & EditorWithCodeMirror;
 		if (cm instanceof EditorView) {
 			return cm;
 		}
@@ -114,7 +118,7 @@ export class HeadingFoldFeature implements Feature {
 
 		const state = editorView.state;
 		const doc = state.doc;
-		const effects: StateEffect<any>[] = [];
+		const effects: StateEffect<unknown>[] = [];
 
 		const folded = foldedRanges(state);
 		folded.between(0, doc.length, (from: number, to: number) => {
@@ -150,7 +154,7 @@ export class HeadingFoldFeature implements Feature {
 
 		const state = editorView.state;
 		const doc = state.doc;
-		const effects: StateEffect<any>[] = [];
+		const effects: StateEffect<unknown>[] = [];
 
 		const folded = foldedRanges(state);
 		folded.between(0, doc.length, (from: number, to: number) => {

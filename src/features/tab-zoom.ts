@@ -1,6 +1,7 @@
 import { Notice, WorkspaceLeaf } from "obsidian";
-import type { EventRef, Plugin } from "obsidian";
+import type { EventRef } from "obsidian";
 import type { Feature } from "./feature";
+import type { WhyingPluginContext } from "../types";
 
 interface TabZoomSettings {
 	defaultZoom: number;
@@ -24,24 +25,30 @@ const TAB_ZOOM_DEFAULTS: TabZoomSettings = {
 export { TAB_ZOOM_DEFAULTS };
 export type { TabZoomSettings };
 
+interface WorkspaceLeafWithId extends WorkspaceLeaf {
+	id?: string;
+}
+
 export class TabZoomFeature implements Feature {
 	id = "tab-zoom";
-	name = "Tab Zoom";
+	name = "Tab zoom";
 
-	private plugin: Plugin | null = null;
+	private plugin: WhyingPluginContext | null = null;
 	private commandIds: string[] = [];
 	private eventRefs: EventRef[] = [];
 	private statusBarEl: HTMLElement | null = null;
 
 	private get settings(): TabZoomSettings {
-		return (this.plugin as any)?.settings?.tabZoom ?? TAB_ZOOM_DEFAULTS;
+		return this.plugin?.settings.tabZoom ?? TAB_ZOOM_DEFAULTS;
 	}
 
 	private async saveSettings(): Promise<void> {
-		await (this.plugin as any)?.saveSettings?.();
+		if (this.plugin) {
+			await this.plugin.saveSettings();
+		}
 	}
 
-	onload(plugin: Plugin): void {
+	onload(plugin: WhyingPluginContext): void {
 		this.plugin = plugin;
 
 		if (this.settings.showStatusBar) {
@@ -80,7 +87,7 @@ export class TabZoomFeature implements Feature {
 	onunload(): void {
 		if (this.plugin) {
 			for (const id of this.commandIds) {
-				(this.plugin.app as any).commands.removeCommand(`${this.plugin.manifest.id}:${id}`);
+				this.plugin.removeCommand(`${this.plugin.manifest.id}:${id}`);
 			}
 
 			for (const ref of this.eventRefs) {
@@ -105,13 +112,13 @@ export class TabZoomFeature implements Feature {
 	// --- Zoom core ---
 
 	private getLeafId(leaf: WorkspaceLeaf): string {
-		return (leaf as any).id ?? "";
+		return (leaf as WorkspaceLeafWithId).id ?? "";
 	}
 
 	private getZoomTarget(leaf: WorkspaceLeaf): HTMLElement | null {
 		const container = leaf.view?.containerEl;
 		if (!container) return null;
-		return (container.querySelector(".view-content") as HTMLElement) ?? container;
+		return container.querySelector<HTMLElement>(".view-content") ?? container;
 	}
 
 	private clampZoom(zoom: number): number {
@@ -123,14 +130,18 @@ export class TabZoomFeature implements Feature {
 		if (!target) return;
 
 		const clamped = this.clampZoom(zoomPercent);
-		(target.style as any).zoom = `${clamped / 100}`;
+		target.style.setProperty("zoom", `${clamped / 100}`);
 	}
 
 	private removeZoomFromLeaf(leaf: WorkspaceLeaf) {
 		const target = this.getZoomTarget(leaf);
 		if (target) {
-			(target.style as any).zoom = "";
+			target.style.removeProperty("zoom");
 		}
+	}
+
+	private getCurrentLeaf(): WorkspaceLeaf | null {
+		return this.plugin?.app.workspace.getMostRecentLeaf() ?? null;
 	}
 
 	private getCurrentZoom(leaf: WorkspaceLeaf): number {
@@ -144,7 +155,7 @@ export class TabZoomFeature implements Feature {
 	// --- Commands ---
 
 	private zoomCurrentTab(delta: number) {
-		const leaf = this.plugin?.app.workspace.activeLeaf;
+		const leaf = this.getCurrentLeaf();
 		if (!leaf) {
 			new Notice("No active tab");
 			return;
@@ -161,7 +172,7 @@ export class TabZoomFeature implements Feature {
 	}
 
 	private resetCurrentTabZoom() {
-		const leaf = this.plugin?.app.workspace.activeLeaf;
+		const leaf = this.getCurrentLeaf();
 		if (!leaf) return;
 
 		const defaultZoom = this.settings.defaultZoom;
@@ -192,7 +203,7 @@ export class TabZoomFeature implements Feature {
 		} else {
 			this.settings.zoomRecords[leafId] = zoom;
 		}
-		this.saveSettings();
+		void this.saveSettings();
 	}
 
 	// --- Restore ---
@@ -229,7 +240,7 @@ export class TabZoomFeature implements Feature {
 			void this.saveSettings();
 		}
 
-		const activeLeaf = this.plugin?.app.workspace.activeLeaf;
+		const activeLeaf = this.getCurrentLeaf();
 		if (activeLeaf) {
 			this.updateStatusBar(this.getCurrentZoom(activeLeaf));
 		}
