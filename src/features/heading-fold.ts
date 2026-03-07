@@ -133,12 +133,7 @@ export class HeadingFoldFeature implements Feature {
 
 		const state = editorView.state;
 		const doc = state.doc;
-		const effects: StateEffect<unknown>[] = [];
-
-		const folded = foldedRanges(state);
-		folded.between(0, doc.length, (from: number, to: number) => {
-			effects.push(unfoldEffect.of({ from, to }));
-		});
+		const foldEffects: StateEffect<unknown>[] = [];
 
 		for (let lineNum = 1; lineNum <= doc.lines; lineNum++) {
 			const line = doc.line(lineNum);
@@ -147,16 +142,27 @@ export class HeadingFoldFeature implements Feature {
 			if (headingLevel > 0 && headingLevel >= level) {
 				const range = foldable(state, line.from, line.to);
 				if (range) {
-					effects.push(foldEffect.of({ from: range.from, to: range.to }));
+					foldEffects.push(foldEffect.of({ from: range.from, to: range.to }));
 				}
 			}
 		}
 
+		if (foldEffects.length === 0) {
+			new Notice(`No foldable H${level} headings found`);
+			return;
+		}
+
+		const effects: StateEffect<unknown>[] = [];
+		const folded = foldedRanges(state);
+		folded.between(0, doc.length, (from: number, to: number) => {
+			effects.push(unfoldEffect.of({ from, to }));
+		});
+
+		effects.push(...foldEffects);
+
 		if (effects.length > 0) {
 			editorView.dispatch({ effects });
 			new Notice(`Folded to H${level}`);
-		} else {
-			new Notice(`No foldable H${level} headings found`);
 		}
 	}
 
@@ -202,7 +208,7 @@ export class HeadingFoldFeature implements Feature {
 
 		if (delta > 0) {
 			if (isFullyUnfolded) {
-				this.unfoldAll(editor);
+				new Notice("Already fully unfolded");
 				return;
 			}
 

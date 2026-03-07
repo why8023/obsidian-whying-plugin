@@ -6,8 +6,6 @@ import type { WhyingPluginContext } from "../types";
 interface TabZoomSettings {
 	defaultZoom: number;
 	zoomStep: number;
-	minZoom: number;
-	maxZoom: number;
 	showStatusBar: boolean;
 	/** leafId -> zoom level */
 	zoomRecords: Record<string, number>;
@@ -16,8 +14,6 @@ interface TabZoomSettings {
 const TAB_ZOOM_DEFAULTS: TabZoomSettings = {
 	defaultZoom: 100,
 	zoomStep: 10,
-	minZoom: 30,
-	maxZoom: 300,
 	showStatusBar: true,
 	zoomRecords: {},
 };
@@ -51,11 +47,7 @@ export class TabZoomFeature implements Feature {
 	onload(plugin: WhyingPluginContext): void {
 		this.plugin = plugin;
 
-		if (this.settings.showStatusBar) {
-			this.statusBarEl = plugin.addStatusBarItem();
-			this.statusBarEl.addClass("tab-zoom-status");
-			this.updateStatusBar(this.settings.defaultZoom);
-		}
+		this.syncStatusBar();
 
 		const commands = [
 			{ id: "zoom-in", name: "Zoom in current tab", cb: () => this.zoomCurrentTab(this.settings.zoomStep) },
@@ -82,6 +74,16 @@ export class TabZoomFeature implements Feature {
 		plugin.app.workspace.onLayoutReady(() => {
 			this.restoreAllZoom();
 		});
+	}
+
+	onSettingsChanged(): void {
+		this.syncStatusBar();
+		this.applyZoomToAllLeaves();
+
+		const activeLeaf = this.getCurrentLeaf();
+		if (activeLeaf) {
+			this.updateStatusBar(this.getCurrentZoom(activeLeaf));
+		}
 	}
 
 	onunload(): void {
@@ -121,16 +123,15 @@ export class TabZoomFeature implements Feature {
 		return container.querySelector<HTMLElement>(".view-content") ?? container;
 	}
 
-	private clampZoom(zoom: number): number {
-		return Math.max(this.settings.minZoom, Math.min(this.settings.maxZoom, zoom));
+	private isValidZoom(zoom: number): boolean {
+		return Number.isFinite(zoom) && zoom > 0;
 	}
 
 	private applyZoomToLeaf(leaf: WorkspaceLeaf, zoomPercent: number) {
 		const target = this.getZoomTarget(leaf);
-		if (!target) return;
+		if (!target || !this.isValidZoom(zoomPercent)) return;
 
-		const clamped = this.clampZoom(zoomPercent);
-		target.style.setProperty("zoom", `${clamped / 100}`);
+		target.style.setProperty("zoom", `${zoomPercent / 100}`);
 	}
 
 	private removeZoomFromLeaf(leaf: WorkspaceLeaf) {
@@ -146,10 +147,36 @@ export class TabZoomFeature implements Feature {
 
 	private getCurrentZoom(leaf: WorkspaceLeaf): number {
 		const leafId = this.getLeafId(leaf);
-		if (leafId && this.settings.zoomRecords[leafId] !== undefined) {
-			return this.settings.zoomRecords[leafId];
+		const savedZoom = leafId ? this.settings.zoomRecords[leafId] : undefined;
+		if (savedZoom !== undefined && this.isValidZoom(savedZoom)) {
+			return savedZoom;
 		}
 		return this.settings.defaultZoom;
+	}
+
+	private applyZoomToAllLeaves() {
+		this.plugin?.app.workspace.iterateAllLeaves((leaf) => {
+			this.applyZoomToLeaf(leaf, this.getCurrentZoom(leaf));
+		});
+	}
+
+	private syncStatusBar() {
+		if (!this.plugin) {
+			return;
+		}
+
+		if (this.settings.showStatusBar) {
+			if (!this.statusBarEl) {
+				this.statusBarEl = this.plugin.addStatusBarItem();
+				this.statusBarEl.addClass("tab-zoom-status");
+			}
+			return;
+		}
+
+		if (this.statusBarEl) {
+			this.statusBarEl.remove();
+			this.statusBarEl = null;
+		}
 	}
 
 	// --- Commands ---
@@ -161,7 +188,12 @@ export class TabZoomFeature implements Feature {
 			return;
 		}
 
-		const newZoom = this.clampZoom(this.getCurrentZoom(leaf) + delta);
+		const newZoom = this.getCurrentZoom(leaf) + delta;
+		if (!this.isValidZoom(newZoom)) {
+			new Notice("Zoom must be greater than 0%", 1500);
+			return;
+		}
+
 		this.applyZoomToLeaf(leaf, newZoom);
 		this.persistZoom(leaf, newZoom);
 		this.updateStatusBar(newZoom);
@@ -183,10 +215,8 @@ export class TabZoomFeature implements Feature {
 	}
 
 	private resetAllZoom() {
-		this.plugin?.app.workspace.iterateAllLeaves((leaf) => {
-			this.removeZoomFromLeaf(leaf);
-		});
 		this.settings.zoomRecords = {};
+		this.applyZoomToAllLeaves();
 		void this.saveSettings();
 		this.updateStatusBar(this.settings.defaultZoom);
 		new Notice("All tabs zoom reset");
@@ -221,11 +251,9 @@ export class TabZoomFeature implements Feature {
 			const leafId = this.getLeafId(leaf);
 			if (leafId) {
 				aliveLeafIds.add(leafId);
-				const savedZoom = this.settings.zoomRecords[leafId];
-				if (savedZoom !== undefined) {
-					this.applyZoomToLeaf(leaf, savedZoom);
-				}
 			}
+
+			this.applyZoomToLeaf(leaf, this.getCurrentZoom(leaf));
 		});
 
 		// Clean up stale records for leaves that no longer exist

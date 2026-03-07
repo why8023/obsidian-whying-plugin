@@ -11,6 +11,7 @@ export default class WhyingPlugin extends Plugin implements WhyingPluginContext 
 		new HeadingFoldFeature(),
 		new TabZoomFeature(),
 	];
+	private activeFeatureIds = new Set<string>();
 
 	async onload(): Promise<void> {
 		await this.loadSettings();
@@ -19,6 +20,8 @@ export default class WhyingPlugin extends Plugin implements WhyingPluginContext 
 			settings: this.settings,
 			isFeatureEnabled: (id) => this.isFeatureEnabled(id),
 			enableFeature: (f) => this.enableFeature(f),
+			disableFeature: (f) => this.disableFeature(f),
+			notifyFeatureSettingsChanged: (id) => this.notifyFeatureSettingsChanged(id),
 			saveSettings: () => this.saveSettings(),
 		}));
 
@@ -31,7 +34,7 @@ export default class WhyingPlugin extends Plugin implements WhyingPluginContext 
 
 	onunload(): void {
 		for (const feature of this.features) {
-			feature.onunload();
+			this.disableFeature(feature);
 		}
 	}
 
@@ -40,7 +43,30 @@ export default class WhyingPlugin extends Plugin implements WhyingPluginContext 
 	}
 
 	enableFeature(feature: Feature): void {
+		if (this.activeFeatureIds.has(feature.id)) {
+			return;
+		}
+
 		feature.onload(this);
+		this.activeFeatureIds.add(feature.id);
+	}
+
+	disableFeature(feature: Feature): void {
+		if (!this.activeFeatureIds.has(feature.id)) {
+			return;
+		}
+
+		feature.onunload();
+		this.activeFeatureIds.delete(feature.id);
+	}
+
+	notifyFeatureSettingsChanged(featureId: string): void {
+		if (!this.activeFeatureIds.has(featureId)) {
+			return;
+		}
+
+		const feature = this.features.find((item) => item.id === featureId);
+		feature?.onSettingsChanged?.();
 	}
 
 	async loadSettings(): Promise<void> {

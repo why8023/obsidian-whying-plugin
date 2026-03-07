@@ -5,4 +5,5 @@ export interface Feature {
 	name: string;
 	onload(plugin: WhyingPluginContext): void;
 	onunload(): void;
+	onSettingsChanged?(): void;
 }

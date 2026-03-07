@@ -35,7 +35,7 @@ function normalizeBooleanRecord(value: unknown): Record<string, boolean> {
 	return normalized;
 }
 
-function normalizeNumberRecord(value: unknown): Record<string, number> {
+function normalizePositiveNumberRecord(value: unknown): Record<string, number> {
 	if (!isRecord(value)) {
 		return {};
 	}
@@ -43,7 +43,7 @@ function normalizeNumberRecord(value: unknown): Record<string, number> {
 	const normalized: Record<string, number> = {};
 
 	for (const [key, item] of Object.entries(value)) {
-		if (typeof item === "number") {
+		if (typeof item === "number" && Number.isFinite(item) && item > 0) {
 			normalized[key] = item;
 		}
 	}
@@ -51,8 +51,8 @@ function normalizeNumberRecord(value: unknown): Record<string, number> {
 	return normalized;
 }
 
-function normalizeNumber(value: unknown, fallback: number): number {
-	return typeof value === "number" ? value : fallback;
+function normalizePositiveNumber(value: unknown, fallback: number): number {
+	return typeof value === "number" && Number.isFinite(value) && value > 0 ? value : fallback;
 }
 
 function normalizeBoolean(value: unknown, fallback: boolean): boolean {
@@ -66,12 +66,10 @@ export function normalizeSettings(data: unknown): WhyingPluginSettings {
 	return {
 		enabledFeatures: normalizeBooleanRecord(rawSettings.enabledFeatures),
 		tabZoom: {
-			defaultZoom: normalizeNumber(rawTabZoom.defaultZoom, TAB_ZOOM_DEFAULTS.defaultZoom),
-			zoomStep: normalizeNumber(rawTabZoom.zoomStep, TAB_ZOOM_DEFAULTS.zoomStep),
-			minZoom: normalizeNumber(rawTabZoom.minZoom, TAB_ZOOM_DEFAULTS.minZoom),
-			maxZoom: normalizeNumber(rawTabZoom.maxZoom, TAB_ZOOM_DEFAULTS.maxZoom),
+			defaultZoom: normalizePositiveNumber(rawTabZoom.defaultZoom, TAB_ZOOM_DEFAULTS.defaultZoom),
+			zoomStep: normalizePositiveNumber(rawTabZoom.zoomStep, TAB_ZOOM_DEFAULTS.zoomStep),
 			showStatusBar: normalizeBoolean(rawTabZoom.showStatusBar, TAB_ZOOM_DEFAULTS.showStatusBar),
-			zoomRecords: normalizeNumberRecord(rawTabZoom.zoomRecords),
+			zoomRecords: normalizePositiveNumberRecord(rawTabZoom.zoomRecords),
 		},
 	};
 }
@@ -81,6 +79,8 @@ export interface SettingTabContext {
 	settings: WhyingPluginSettings;
 	isFeatureEnabled(featureId: string): boolean;
 	enableFeature(feature: Feature): void;
+	disableFeature(feature: Feature): void;
+	notifyFeatureSettingsChanged(featureId: string): void;
 	saveSettings(): Promise<void>;
 }
 
@@ -96,6 +96,12 @@ export class WhyingSettingTab extends PluginSettingTab {
 		const { containerEl } = this;
 		containerEl.empty();
 
+		const saveTabZoomSettings = async (update: () => void) => {
+			update();
+			await this.ctx.saveSettings();
+			this.ctx.notifyFeatureSettingsChanged("tab-zoom");
+		};
+
 		for (const feature of this.ctx.features) {
 			new Setting(containerEl)
 				.setName(feature.name)
@@ -108,7 +114,7 @@ export class WhyingSettingTab extends PluginSettingTab {
 							if (value) {
 								this.ctx.enableFeature(feature);
 							} else {
-								feature.onunload();
+								this.ctx.disableFeature(feature);
 							}
 							this.display();
 						})
@@ -127,7 +133,11 @@ export class WhyingSettingTab extends PluginSettingTab {
 				.setDesc("Default zoom percentage for new tabs")
 				.addSlider((s) =>
 					s.setLimits(50, 200, 10).setValue(tz.defaultZoom).setDynamicTooltip()
-						.onChange(async (v) => { tz.defaultZoom = v; await this.ctx.saveSettings(); })
+						.onChange(async (v) => {
+							await saveTabZoomSettings(() => {
+								tz.defaultZoom = v;
+							});
+						})
 				);
 
 			new Setting(containerEl)
@@ -135,23 +145,11 @@ export class WhyingSettingTab extends PluginSettingTab {
 				.setDesc("Percentage increment per zoom in/out")
 				.addSlider((s) =>
 					s.setLimits(5, 25, 5).setValue(tz.zoomStep).setDynamicTooltip()
-						.onChange(async (v) => { tz.zoomStep = v; await this.ctx.saveSettings(); })
-				);
-
-			new Setting(containerEl)
-				.setName("Min zoom")
-				.setDesc("Minimum zoom percentage")
-				.addSlider((s) =>
-					s.setLimits(10, 80, 10).setValue(tz.minZoom).setDynamicTooltip()
-						.onChange(async (v) => { tz.minZoom = v; await this.ctx.saveSettings(); })
-				);
-
-			new Setting(containerEl)
-				.setName("Max zoom")
-				.setDesc("Maximum zoom percentage")
-				.addSlider((s) =>
-					s.setLimits(150, 500, 10).setValue(tz.maxZoom).setDynamicTooltip()
-						.onChange(async (v) => { tz.maxZoom = v; await this.ctx.saveSettings(); })
+						.onChange(async (v) => {
+							await saveTabZoomSettings(() => {
+								tz.zoomStep = v;
+							});
+						})
 				);
 
 			new Setting(containerEl)
@@ -159,7 +157,11 @@ export class WhyingSettingTab extends PluginSettingTab {
 				.setDesc("Display current zoom level in the status bar")
 				.addToggle((t) =>
 					t.setValue(tz.showStatusBar)
-						.onChange(async (v) => { tz.showStatusBar = v; await this.ctx.saveSettings(); })
+						.onChange(async (v) => {
+							await saveTabZoomSettings(() => {
+								tz.showStatusBar = v;
+							});
+						})
 				);
 
 			const recordCount = Object.keys(tz.zoomRecords).length;
@@ -169,8 +171,9 @@ export class WhyingSettingTab extends PluginSettingTab {
 				.addButton((b) =>
 					b.setButtonText("Clear all").setWarning()
 						.onClick(async () => {
-							tz.zoomRecords = {};
-							await this.ctx.saveSettings();
+							await saveTabZoomSettings(() => {
+								tz.zoomRecords = {};
+							});
 							this.display();
 						})
 				);
