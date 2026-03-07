@@ -1,6 +1,6 @@
 {
 	"name": "whying-plugin",
-	"version": "0.0.5",
+	"version": "0.0.6",
 	"description": "Heading folding and per-tab zoom controls for Obsidian.",
 	"main": "main.js",
 	"type": "module",

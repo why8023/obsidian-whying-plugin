@@ -1,7 +1,7 @@
 {
 	"id": "whying-plugin",
 	"name": "Whying Plugin",
-	"version": "0.0.5",
+	"version": "0.0.6",
 	"minAppVersion": "0.15.4",
 	"description": "Heading folding and per-tab zoom controls for Obsidian.",
 	"author": "whying",
