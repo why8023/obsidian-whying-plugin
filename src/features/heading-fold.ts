@@ -72,6 +72,7 @@ export class HeadingFoldFeature implements Feature {
 	}
 
 	private getEditorView(editor: Editor): EditorView | null {
+		// Obsidian's public Editor API does not expose heading-level fold controls.
 		const { cm } = editor as Editor & EditorWithCodeMirror;
 		if (cm instanceof EditorView) {
 			return cm;

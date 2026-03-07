@@ -1,9 +1,11 @@
-# whying Plugin
+# Whying Plugin
 
-A lightweight Obsidian plugin that adds two focused editor utilities:
+Lightweight desktop-only utilities for Obsidian:
 
-- Heading-based folding commands for Markdown notes
-- Per-tab zoom controls with persistent zoom records
+- Fold the current Markdown note to a heading depth from `H1` to `H6`
+- Increase or decrease the current heading fold depth
+- Zoom the current tab and persist zoom per tab view state
+- Reset the current tab or all tabs back to the default zoom
 
 [简体中文](README.zh-CN.md)
 
@@ -11,20 +13,18 @@ A lightweight Obsidian plugin that adds two focused editor utilities:
 
 ### Heading fold
 
-- Fold the current note to any heading depth from `H1` to `H6`
-- Increase or decrease the current fold depth with commands
+- Fold the active note to any heading level from `H1` to `H6`
+- Increase or decrease the current fold level with commands
 - Unfold all headings in the active editor
 
 ### Tab zoom
 
 - Zoom the active tab in or out
-- Save zoom level per tab and restore it after layout reload
+- Save zoom per tab view state and restore it after layout reload
 - Reset the current tab or all tabs back to the default zoom
 - Optionally show the current zoom percentage in the status bar
 
 ## Commands
-
-The plugin registers the following commands:
 
 - `Fold to H1`
 - `Fold to H2`
@@ -42,21 +42,20 @@ The plugin registers the following commands:
 
 ## Settings
 
-Each feature can be enabled or disabled independently in the plugin settings.
+Each feature can be enabled or disabled independently.
 
-For tab zoom, the following options are available:
+Tab zoom provides:
 
-- Default zoom percentage for new tabs
+- Default zoom percentage for tabs without a saved zoom value
 - Zoom step used by zoom in and zoom out commands
-- Minimum and maximum allowed zoom
 - Status bar visibility
-- Clear all saved zoom records
+- Clear all saved tab zoom records
 
 ## Installation
 
 ### Manual installation
 
-Copy the release files into your vault:
+Copy the release files into:
 
 `<Vault>/.obsidian/plugins/whying-plugin/`
 
@@ -66,7 +65,7 @@ Required files:
 - `manifest.json`
 - `styles.css`
 
-Then reload Obsidian and enable the plugin in **Settings → Community plugins**.
+Then reload Obsidian and enable the plugin in **Settings -> Community plugins**.
 
 ### Local development
 
@@ -83,8 +82,8 @@ Then reload Obsidian and enable the plugin in **Settings → Community plugins**
 
 ## Notes
 
+- The plugin is desktop-only
 - Plugin data is stored locally with Obsidian's `loadData()` and `saveData()` APIs
-- `manifest.json` currently sets `isDesktopOnly` to `false`
 
 ## License
 

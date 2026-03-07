@@ -167,7 +167,7 @@ export class WhyingSettingTab extends PluginSettingTab {
 			const recordCount = Object.keys(tz.zoomRecords).length;
 			new Setting(containerEl)
 				.setName("Zoom records")
-				.setDesc(`${recordCount} saved file zoom records. Clear to reset all.`)
+				.setDesc(`${recordCount} saved tab zoom records. Clear to reset all.`)
 				.addButton((b) =>
 					b.setButtonText("Clear all").setWarning()
 						.onClick(async () => {

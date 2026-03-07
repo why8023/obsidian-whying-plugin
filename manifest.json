@@ -1,11 +1,10 @@
 {
 	"id": "whying-plugin",
-	"name": "whying Plugin",
+	"name": "Whying Plugin",
 	"version": "0.0.5",
-	"minAppVersion": "0.15.0",
-	"description": "Demonstrates some of the capabilities of the Obsidian API.",
+	"minAppVersion": "0.15.4",
+	"description": "Heading folding and per-tab zoom controls for Obsidian.",
 	"author": "whying",
 	"authorUrl": "https://github.com/why8023",
-	"fundingUrl": "https://obsidian.md/pricing",
-	"isDesktopOnly": false
+	"isDesktopOnly": true
 }
