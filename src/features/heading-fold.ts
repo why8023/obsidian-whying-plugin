@@ -9,6 +9,17 @@ interface EditorWithCodeMirror {
 	cm?: unknown;
 }
 
+interface HeadingMatch {
+	level: number;
+	from: number;
+	to: number;
+}
+
+interface FenceState {
+	marker: "`" | "~";
+	length: number;
+}
+
 export class HeadingFoldFeature implements Feature {
 	id = "heading-fold";
 	name = "Heading fold";
@@ -81,46 +92,113 @@ export class HeadingFoldFeature implements Feature {
 	}
 
 	private getHeadingLevel(lineText: string): number {
-		const match = lineText.match(/^(#{1,6})\s/);
+		const match = lineText.match(/^(?: {0,3})(#{1,6})[ \t]+/);
 		return match ? match[1]!.length : 0;
 	}
 
-	private getDeepestHeadingLevel(editorView: EditorView): number | null {
-		const { doc } = editorView.state;
-		let deepestHeadingLevel = 0;
+	private getFenceStart(lineText: string): FenceState | null {
+		const match = lineText.match(/^(?: {0,3})(`{3,}|~{3,})(.*)$/);
+		if (!match) {
+			return null;
+		}
+
+		const marker = match[1]![0] as "`" | "~";
+		const info = match[2] ?? "";
+		if (marker === "`" && info.includes("`")) {
+			return null;
+		}
+
+		return {
+			marker,
+			length: match[1]!.length,
+		};
+	}
+
+	private isFenceEnd(lineText: string, fence: FenceState): boolean {
+		const markerPattern = `${fence.marker}{${fence.length},}`;
+		return new RegExp(`^(?: {0,3})${markerPattern}[ \\t]*$`).test(lineText);
+	}
+
+	private forEachHeading(
+		state: EditorView["state"],
+		callback: (heading: HeadingMatch) => void
+	): void {
+		const { doc } = state;
+		let activeFence: FenceState | null = null;
 
 		for (let lineNum = 1; lineNum <= doc.lines; lineNum++) {
 			const line = doc.line(lineNum);
-			const headingLevel = this.getHeadingLevel(line.text);
+
+			if (activeFence) {
+				if (this.isFenceEnd(line.text, activeFence)) {
+					activeFence = null;
+				}
+				continue;
+			}
+
+			const fenceStart = this.getFenceStart(line.text);
+			if (fenceStart) {
+				activeFence = fenceStart;
+				continue;
+			}
+
+			const level = this.getHeadingLevel(line.text);
+			if (level === 0) {
+				continue;
+			}
+
+			callback({
+				level,
+				from: line.from,
+				to: line.to,
+			});
+		}
+	}
+
+	private getDeepestHeadingLevel(editorView: EditorView): number | null {
+		let deepestHeadingLevel = 0;
+
+		this.forEachHeading(editorView.state, ({ level: headingLevel }) => {
 			if (headingLevel > deepestHeadingLevel) {
 				deepestHeadingLevel = headingLevel;
 			}
-		}
+		});
 
 		return deepestHeadingLevel === 0 ? null : deepestHeadingLevel;
 	}
 
+	private isRangeFolded(
+		folded: ReturnType<typeof foldedRanges>,
+		from: number,
+		to: number
+	): boolean {
+		let isFolded = false;
+
+		folded.between(from, from + 1, (foldFrom: number, foldTo: number) => {
+			if (foldFrom === from && foldTo === to) {
+				isFolded = true;
+			}
+		});
+
+		return isFolded;
+	}
+
 	private detectCurrentFoldLevel(editorView: EditorView): number {
 		const state = editorView.state;
-		const doc = state.doc;
 		const folded = foldedRanges(state);
 
 		let minFoldedLevel = 7;
 
-		for (let lineNum = 1; lineNum <= doc.lines; lineNum++) {
-			const line = doc.line(lineNum);
-			const headingLevel = this.getHeadingLevel(line.text);
-			if (headingLevel === 0) continue;
+		this.forEachHeading(state, ({ level: headingLevel, from, to }) => {
+			const range = foldable(state, from, to);
+			if (!range) {
+				return;
+			}
 
-			let isFolded = false;
-			folded.between(line.from, line.to + 1, () => {
-				isFolded = true;
-			});
-
-			if (isFolded && headingLevel < minFoldedLevel) {
+			if (this.isRangeFolded(folded, range.from, range.to) && headingLevel < minFoldedLevel) {
 				minFoldedLevel = headingLevel;
 			}
-		}
+		});
 
 		return minFoldedLevel;
 	}
@@ -133,20 +211,16 @@ export class HeadingFoldFeature implements Feature {
 		}
 
 		const state = editorView.state;
-		const doc = state.doc;
 		const foldEffects: StateEffect<unknown>[] = [];
 
-		for (let lineNum = 1; lineNum <= doc.lines; lineNum++) {
-			const line = doc.line(lineNum);
-			const headingLevel = this.getHeadingLevel(line.text);
-
+		this.forEachHeading(state, ({ level: headingLevel, from, to }) => {
 			if (headingLevel > 0 && headingLevel >= level) {
-				const range = foldable(state, line.from, line.to);
+				const range = foldable(state, from, to);
 				if (range) {
 					foldEffects.push(foldEffect.of({ from: range.from, to: range.to }));
 				}
 			}
-		}
+		});
 
 		if (foldEffects.length === 0) {
 			new Notice(`No foldable H${level} headings found`);
@@ -154,6 +228,7 @@ export class HeadingFoldFeature implements Feature {
 		}
 
 		const effects: StateEffect<unknown>[] = [];
+		const { doc } = state;
 		const folded = foldedRanges(state);
 		folded.between(0, doc.length, (from: number, to: number) => {
 			effects.push(unfoldEffect.of({ from, to }));
