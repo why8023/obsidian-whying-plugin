@@ -3,11 +3,15 @@ import type { EventRef } from "obsidian";
 import type { Feature } from "./feature";
 import type { WhyingPluginContext } from "../types";
 
+interface LeafWithPrivateId extends WorkspaceLeaf {
+	id?: string;
+}
+
 interface TabZoomSettings {
 	defaultZoom: number;
 	zoomStep: number;
 	showStatusBar: boolean;
-	/** serialized view state -> zoom level */
+	/** stable tab key -> zoom level */
 	zoomRecords: Record<string, number>;
 }
 
@@ -109,7 +113,21 @@ export class TabZoomFeature implements Feature {
 
 	// --- Zoom core ---
 
+	private getLeafId(leaf: WorkspaceLeaf): string | null {
+		const leafId = (leaf as LeafWithPrivateId).id;
+		return typeof leafId === "string" && leafId.length > 0 ? leafId : null;
+	}
+
 	private getZoomKey(leaf: WorkspaceLeaf): string {
+		const leafId = this.getLeafId(leaf);
+		if (leafId) {
+			return `leaf:${leafId}`;
+		}
+
+		return this.getLegacyZoomKey(leaf);
+	}
+
+	private getLegacyZoomKey(leaf: WorkspaceLeaf): string {
 		const viewState = leaf.getViewState();
 
 		return JSON.stringify({
@@ -117,6 +135,12 @@ export class TabZoomFeature implements Feature {
 			pinned: viewState.pinned ?? false,
 			state: viewState.state ?? {},
 		});
+	}
+
+	private getCompatibleZoomKeys(leaf: WorkspaceLeaf): string[] {
+		const primaryKey = this.getZoomKey(leaf);
+		const legacyKey = this.getLegacyZoomKey(leaf);
+		return primaryKey === legacyKey ? [primaryKey] : [primaryKey, legacyKey];
 	}
 
 	private getZoomTarget(leaf: WorkspaceLeaf): HTMLElement | null {
@@ -150,12 +174,23 @@ export class TabZoomFeature implements Feature {
 		return this.plugin?.app.workspace.getMostRecentLeaf() ?? null;
 	}
 
-	private getCurrentZoom(leaf: WorkspaceLeaf): number {
-		const zoomKey = this.getZoomKey(leaf);
-		const savedZoom = this.settings.zoomRecords[zoomKey];
-		if (savedZoom !== undefined && this.isValidZoom(savedZoom)) {
-			return savedZoom;
+	private findSavedZoom(leaf: WorkspaceLeaf): { key: string; zoom: number } | null {
+		for (const key of this.getCompatibleZoomKeys(leaf)) {
+			const savedZoom = this.settings.zoomRecords[key];
+			if (savedZoom !== undefined && this.isValidZoom(savedZoom)) {
+				return { key, zoom: savedZoom };
+			}
 		}
+
+		return null;
+	}
+
+	private getCurrentZoom(leaf: WorkspaceLeaf): number {
+		const savedZoom = this.findSavedZoom(leaf);
+		if (savedZoom) {
+			return savedZoom.zoom;
+		}
+
 		return this.settings.defaultZoom;
 	}
 
@@ -227,10 +262,15 @@ export class TabZoomFeature implements Feature {
 		new Notice("All tabs zoom reset");
 	}
 
-	// --- Persistence (by view state) ---
+	// --- Persistence ---
 
 	private persistZoom(leaf: WorkspaceLeaf, zoom: number) {
 		const zoomKey = this.getZoomKey(leaf);
+		for (const key of this.getCompatibleZoomKeys(leaf)) {
+			if (key !== zoomKey) {
+				delete this.settings.zoomRecords[key];
+			}
+		}
 
 		if (zoom === this.settings.defaultZoom) {
 			delete this.settings.zoomRecords[zoomKey];
@@ -250,15 +290,26 @@ export class TabZoomFeature implements Feature {
 
 	private restoreAllZoom() {
 		const aliveZoomKeys = new Set<string>();
+		let changed = false;
 
 		this.plugin?.app.workspace.iterateAllLeaves((leaf) => {
-			aliveZoomKeys.add(this.getZoomKey(leaf));
+			for (const key of this.getCompatibleZoomKeys(leaf)) {
+				aliveZoomKeys.add(key);
+			}
 
-			this.applyZoomToLeaf(leaf, this.getCurrentZoom(leaf));
+			const savedZoom = this.findSavedZoom(leaf);
+			const zoom = savedZoom?.zoom ?? this.settings.defaultZoom;
+			const currentKey = this.getZoomKey(leaf);
+			if (savedZoom && savedZoom.key !== currentKey) {
+				this.settings.zoomRecords[currentKey] = savedZoom.zoom;
+				delete this.settings.zoomRecords[savedZoom.key];
+				changed = true;
+			}
+
+			this.applyZoomToLeaf(leaf, zoom);
 		});
 
 		// Clean up stale records for views that no longer exist
-		let changed = false;
 		for (const id of Object.keys(this.settings.zoomRecords)) {
 			if (!aliveZoomKeys.has(id)) {
 				delete this.settings.zoomRecords[id];
