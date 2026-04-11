@@ -1,5 +1,6 @@
 import { App, Plugin, PluginSettingTab, Setting } from "obsidian";
 import type { Feature } from "./features/feature";
+import { getSettingsLocalization, type SettingsLocalization } from "./settings-localization";
 import { TAB_ZOOM_DEFAULTS, type TabZoomSettings } from "./features/tab-zoom";
 
 export interface WhyingPluginSettings {
@@ -92,54 +93,47 @@ interface SettingsPageTabDefinition {
 	description: string;
 }
 
-const FEATURE_DESCRIPTIONS: Record<string, string> = {
-	"heading-fold": "Adds commands for folding headings to a chosen depth and stepping the fold level up or down.",
-	"tab-zoom": "Stores a zoom level per tab and can show the active tab zoom in the status bar.",
-};
-
 export class WhyingSettingTab extends PluginSettingTab {
 	private ctx: SettingTabContext;
 	private activeTab: SettingsPageTabId = "features";
-	private readonly pageTitle: string;
-	private readonly pageDescription =
-		"Manage Whying features from one place, then fine-tune tab zoom behavior in a focused panel.";
+	private readonly pluginName: string;
 
 	constructor(app: App, plugin: Plugin, ctx: SettingTabContext) {
 		super(app, plugin);
 		this.ctx = ctx;
-		this.pageTitle = `${plugin.manifest.name} settings`;
+		this.pluginName = plugin.manifest.name;
 	}
 
-	private getSettingsPageTabs(): readonly SettingsPageTabDefinition[] {
+	private getSettingsPageTabs(strings: SettingsLocalization): readonly SettingsPageTabDefinition[] {
 		return [
 			{
 				id: "features",
-				label: "Features",
-				description: "Enable or disable each Whying feature. Changes apply immediately after toggling.",
+				label: strings.tabs.features.label,
+				description: strings.tabs.features.description,
 			},
 			{
 				id: "tab-zoom",
-				label: "Tab zoom",
-				description: "Adjust default zoom behavior, zoom step, and status bar visibility for the tab zoom feature.",
+				label: strings.tabs["tab-zoom"].label,
+				description: strings.tabs["tab-zoom"].description,
 			},
 		];
 	}
 
-	private renderSettingsPageChrome(containerEl: HTMLElement): HTMLElement {
+	private renderSettingsPageChrome(containerEl: HTMLElement, strings: SettingsLocalization): HTMLElement {
 		containerEl.addClass("whying-settings-root");
 
-		const tabs = this.getSettingsPageTabs();
+		const tabs = this.getSettingsPageTabs(strings);
 		const activeTab = tabs.find((tab) => tab.id === this.activeTab) ?? tabs[0]!;
 		this.activeTab = activeTab.id;
 
 		const pageEl = containerEl.createDiv({ cls: "whying-settings-page" });
 		const heroEl = pageEl.createDiv({ cls: "whying-settings-hero" });
-		const titleSetting = new Setting(heroEl).setName(this.pageTitle).setHeading();
+		const titleSetting = new Setting(heroEl).setName(strings.pageTitle(this.pluginName)).setHeading();
 		titleSetting.settingEl.addClass("whying-settings-page-heading");
 		titleSetting.nameEl.addClass("whying-settings-page-title");
 		heroEl.createEl("p", {
 			cls: "whying-settings-page-description",
-			text: this.pageDescription,
+			text: strings.pageDescription,
 		});
 
 		const tabsEl = pageEl.createDiv({ cls: "whying-settings-tabs-nav" });
@@ -186,17 +180,18 @@ export class WhyingSettingTab extends PluginSettingTab {
 	}
 
 	private renderFeatureSettingsSection(containerEl: HTMLElement): void {
+		const strings = getSettingsLocalization();
+
 		new Setting(containerEl)
-			.setName("Available features")
-			.setDesc("Turn features on or off. Enabled features register their commands and UI hooks right away.")
+			.setName(strings.featuresSectionTitle)
+			.setDesc(strings.featuresSectionDescription)
 			.setHeading();
 
 		for (const feature of this.ctx.features) {
 			new Setting(containerEl)
-				.setName(feature.name)
+				.setName(strings.featureLabels[feature.id] ?? feature.name)
 				.setDesc(
-					FEATURE_DESCRIPTIONS[feature.id] ??
-						"Enable this feature to make its commands and behaviors available in Obsidian."
+					strings.featureDescriptions[feature.id] ?? strings.defaultFeatureDescription
 				)
 				.addToggle((toggle) =>
 					toggle.setValue(this.ctx.isFeatureEnabled(feature.id)).onChange(async (value) => {
@@ -214,6 +209,8 @@ export class WhyingSettingTab extends PluginSettingTab {
 	}
 
 	private renderTabZoomSettingsSection(containerEl: HTMLElement): void {
+		const strings = getSettingsLocalization();
+
 		const saveTabZoomSettings = async (update: () => void) => {
 			update();
 			await this.ctx.saveSettings();
@@ -221,14 +218,14 @@ export class WhyingSettingTab extends PluginSettingTab {
 		};
 
 		new Setting(containerEl)
-			.setName("Tab zoom")
-			.setDesc("Control the default zoom level for new tabs and how zoom changes are surfaced in the UI.")
+			.setName(strings.tabZoomSectionTitle)
+			.setDesc(strings.tabZoomSectionDescription)
 			.setHeading();
 
 		if (!this.ctx.isFeatureEnabled("tab-zoom")) {
 			containerEl.createEl("p", {
 				cls: "setting-item-description",
-				text: "Enable the Tab zoom feature in the Features tab to configure its default zoom, zoom step, and status bar behavior.",
+				text: strings.tabZoomDisabledNotice,
 			});
 			return;
 		}
@@ -236,8 +233,8 @@ export class WhyingSettingTab extends PluginSettingTab {
 		const tz = this.ctx.settings.tabZoom;
 
 		new Setting(containerEl)
-			.setName("Default zoom")
-			.setDesc("Default zoom percentage applied when a tab does not already have a saved zoom level.")
+			.setName(strings.defaultZoomName)
+			.setDesc(strings.defaultZoomDescription)
 			.addSlider((slider) =>
 				slider
 					.setLimits(50, 200, 10)
@@ -251,8 +248,8 @@ export class WhyingSettingTab extends PluginSettingTab {
 			);
 
 		new Setting(containerEl)
-			.setName("Zoom step")
-			.setDesc("Percentage increment used by the zoom in and zoom out commands.")
+			.setName(strings.zoomStepName)
+			.setDesc(strings.zoomStepDescription)
 			.addSlider((slider) =>
 				slider
 					.setLimits(5, 25, 5)
@@ -266,8 +263,8 @@ export class WhyingSettingTab extends PluginSettingTab {
 			);
 
 		new Setting(containerEl)
-			.setName("Show in status bar")
-			.setDesc("Display the current tab zoom percentage in the status bar.")
+			.setName(strings.showStatusBarName)
+			.setDesc(strings.showStatusBarDescription)
 			.addToggle((toggle) =>
 				toggle.setValue(tz.showStatusBar).onChange(async (value) => {
 					await saveTabZoomSettings(() => {
@@ -278,11 +275,11 @@ export class WhyingSettingTab extends PluginSettingTab {
 
 		const recordCount = Object.keys(tz.zoomRecords).length;
 		new Setting(containerEl)
-			.setName("Saved zoom records")
-			.setDesc(`${recordCount} tab-specific zoom records are stored right now. Clear them to reset every tab.`)
+			.setName(strings.savedZoomRecordsName)
+			.setDesc(strings.savedZoomRecordsDescription(recordCount))
 			.addButton((button) =>
 				button
-					.setButtonText("Clear all")
+					.setButtonText(strings.clearAllButtonText)
 					.setWarning()
 					.onClick(async () => {
 						await saveTabZoomSettings(() => {
@@ -310,8 +307,9 @@ export class WhyingSettingTab extends PluginSettingTab {
 
 	display(): void {
 		const { containerEl } = this;
+		const strings = getSettingsLocalization();
 		containerEl.empty();
-		const contentEl = this.renderSettingsPageChrome(containerEl);
+		const contentEl = this.renderSettingsPageChrome(containerEl, strings);
 		this.renderActiveTab(contentEl);
 	}
 }
