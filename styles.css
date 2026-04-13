@@ -197,6 +197,99 @@
 	white-space: nowrap;
 }
 
+.whying-python-script-card {
+	display: grid;
+	gap: var(--size-4-2);
+	margin-top: var(--size-4-3);
+	padding: var(--size-4-3);
+	border: 1px solid color-mix(in srgb, var(--background-modifier-border) 60%, transparent);
+	border-radius: var(--radius-l);
+	background: color-mix(in srgb, var(--background-primary) 70%, var(--background-secondary) 30%);
+}
+
+.whying-python-script-card:first-of-type {
+	margin-top: 0;
+}
+
+.whying-python-script-card-title {
+	margin: 0;
+	font-size: var(--font-ui-medium);
+	font-weight: var(--font-semibold);
+}
+
+.whying-python-script-card .setting-item {
+	margin-top: 0;
+}
+
+.whying-python-runner-help {
+	margin-top: var(--size-4-3);
+	padding: var(--size-4-3);
+	border: 1px dashed color-mix(in srgb, var(--background-modifier-border) 72%, transparent);
+	border-radius: var(--radius-m);
+	background: color-mix(in srgb, var(--background-primary) 68%, var(--background-secondary) 32%);
+}
+
+.whying-python-runner-help h4 {
+	margin: 0 0 var(--size-2-2);
+	font-size: var(--font-ui-medium);
+}
+
+.whying-python-runner-help ul {
+	margin: 0;
+	padding-left: var(--size-4-5);
+	color: var(--text-muted);
+}
+
+.whying-python-run-record {
+	display: grid;
+	gap: var(--size-4-2);
+	margin-top: var(--size-4-2);
+}
+
+.whying-python-run-meta-row {
+	display: grid;
+	gap: var(--size-2-2);
+	padding: var(--size-4-2) var(--size-4-3);
+	border: 1px solid color-mix(in srgb, var(--background-modifier-border) 48%, transparent);
+	border-radius: var(--radius-m);
+	background: color-mix(in srgb, var(--background-primary) 76%, var(--background-secondary) 24%);
+}
+
+.whying-python-run-meta-label {
+	font-size: var(--font-ui-small);
+	font-weight: var(--font-semibold);
+	color: var(--text-muted);
+}
+
+.whying-python-run-meta-value {
+	white-space: pre-wrap;
+	word-break: break-word;
+}
+
+.whying-python-run-code-block {
+	display: grid;
+	gap: var(--size-2-1);
+	padding: var(--size-4-3);
+	border: 1px solid color-mix(in srgb, var(--background-modifier-border) 48%, transparent);
+	border-radius: var(--radius-m);
+	background: color-mix(in srgb, var(--background-primary) 76%, var(--background-secondary) 24%);
+}
+
+.whying-python-run-code-label {
+	font-size: var(--font-ui-small);
+	font-weight: var(--font-semibold);
+	color: var(--text-muted);
+}
+
+.whying-python-run-code {
+	margin: 0;
+	padding: var(--size-4-2);
+	border-radius: var(--radius-s);
+	background: color-mix(in srgb, var(--background-primary) 82%, black 6%);
+	white-space: pre-wrap;
+	word-break: break-word;
+}
+
 @media (max-width: 768px) {
 	.whying-settings-root .whying-settings-hero {
 		padding: var(--size-4-4);

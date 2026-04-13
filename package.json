@@ -3,6 +3,7 @@
 	"version": "0.0.10",
 	"description": "Heading folding and per-tab zoom controls for Obsidian.",
 	"main": "main.js",
+	"packageManager": "npm@10.9.3",
 	"type": "module",
 	"scripts": {
 		"dev": "node esbuild.config.mjs",
@@ -29,9 +30,5 @@
 	},
 	"dependencies": {
 		"obsidian": "1.10.3"
-	},
-	"volta": {
-		"node": "22.20.0",
-		"npm": "10.9.3"
 	}
 }

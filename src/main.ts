@@ -1,6 +1,7 @@
 import { Plugin } from "obsidian";
 import type { Feature } from "./features/feature";
 import { HeadingFoldFeature } from "./features/heading-fold";
+import { PythonScriptRunnerFeature } from "./features/python-script-runner";
 import { TabZoomFeature } from "./features/tab-zoom";
 import { WhyingSettingTab, DEFAULT_SETTINGS, normalizeSettings, type WhyingPluginSettings } from "./settings";
 import type { WhyingPluginContext } from "./types";
@@ -10,6 +11,7 @@ export default class WhyingPlugin extends Plugin implements WhyingPluginContext 
 	features: Feature[] = [
 		new HeadingFoldFeature(),
 		new TabZoomFeature(),
+		new PythonScriptRunnerFeature(),
 	];
 	private activeFeatureIds = new Set<string>();
 
