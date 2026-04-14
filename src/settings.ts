@@ -1,25 +1,11 @@
 import { App, Plugin, PluginSettingTab, Setting } from "obsidian";
 import type { Feature } from "./features/feature";
-import { renderPythonScriptRunnerSettings } from "./features/python-script-runner-settings";
-import { PythonScriptRunnerFeature } from "./features/python-script-runner";
-import {
-	PYTHON_SCRIPT_RUNNER_DEFAULT_ARGS_TEMPLATE,
-	PYTHON_SCRIPT_RUNNER_DEFAULTS,
-	PYTHON_SCRIPT_RUNNER_FEATURE_ID,
-	createPythonScriptRunnerSettings,
-	type PythonScriptExecutionMode,
-	type PythonScriptConfig,
-	type PythonScriptLastRunRecord,
-	type PythonScriptRunStatus,
-	type PythonScriptRunnerSettings,
-} from "./features/python-script-runner-types";
 import { getSettingsLocalization, type SettingsLocalization } from "./settings-localization";
 import { TAB_ZOOM_DEFAULTS, type TabZoomSettings } from "./features/tab-zoom";
 
 export interface WhyingPluginSettings {
 	enabledFeatures: Record<string, boolean>;
 	tabZoom: TabZoomSettings;
-	pythonScriptRunner: PythonScriptRunnerSettings;
 }
 
 export const DEFAULT_SETTINGS: WhyingPluginSettings = {
@@ -28,7 +14,6 @@ export const DEFAULT_SETTINGS: WhyingPluginSettings = {
 		...TAB_ZOOM_DEFAULTS,
 		zoomRecords: { ...TAB_ZOOM_DEFAULTS.zoomRecords },
 	},
-	pythonScriptRunner: createPythonScriptRunnerSettings(),
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -79,122 +64,6 @@ function normalizeString(value: unknown, fallback = ""): string {
 	return typeof value === "string" ? value : fallback;
 }
 
-function normalizeOptionalPositiveNumber(value: unknown): number | undefined {
-	return typeof value === "number" && Number.isFinite(value) && value > 0 ? value : undefined;
-}
-
-function normalizePythonScriptRunStatus(value: unknown): PythonScriptRunStatus {
-	switch (value) {
-		case "idle":
-		case "running":
-		case "success":
-		case "error":
-		case "timeout":
-		case "spawn_error":
-			return value;
-		default:
-			return "idle";
-	}
-}
-
-function normalizePythonScriptExecutionMode(value: unknown): PythonScriptExecutionMode | undefined {
-	switch (value) {
-		case "standalone-script":
-		case "project":
-			return value;
-		default:
-			return undefined;
-	}
-}
-
-function normalizePythonScriptConfig(value: unknown): PythonScriptConfig | null {
-	if (!isRecord(value)) {
-		return null;
-	}
-
-	const id = normalizeString(value.id).trim();
-	if (!id) {
-		return null;
-	}
-
-	const normalizedProjectPath = normalizeString(value.projectPath);
-	const normalizedExecutionMode = normalizePythonScriptExecutionMode(value.executionMode);
-	const useIsolatedScript =
-		typeof value.useIsolatedScript === "boolean"
-			? value.useIsolatedScript
-			: normalizedExecutionMode !== undefined
-				? normalizedExecutionMode === "standalone-script"
-				: normalizedProjectPath.trim().length === 0;
-
-	return {
-		id,
-		name: normalizeString(value.name),
-		enabled: normalizeBoolean(value.enabled, true),
-		useIsolatedScript,
-		projectPath: normalizedProjectPath,
-		scriptPath: normalizeString(value.scriptPath),
-		workingDirectory: normalizeString(value.workingDirectory),
-		argsTemplate: normalizeString(value.argsTemplate, PYTHON_SCRIPT_RUNNER_DEFAULT_ARGS_TEMPLATE),
-		timeoutMs: normalizeOptionalPositiveNumber(value.timeoutMs),
-	};
-}
-
-function normalizePythonScriptConfigs(value: unknown): PythonScriptConfig[] {
-	if (!Array.isArray(value)) {
-		return [];
-	}
-
-	return value
-		.map((item) => normalizePythonScriptConfig(item))
-		.filter((item): item is PythonScriptConfig => item !== null);
-}
-
-function normalizePythonScriptLastRunRecord(value: unknown): PythonScriptLastRunRecord | undefined {
-	if (!isRecord(value)) {
-		return undefined;
-	}
-
-	const scriptId = normalizeString(value.scriptId).trim();
-	const scriptName = normalizeString(value.scriptName).trim();
-	if (!scriptId || !scriptName) {
-		return undefined;
-	}
-
-	return {
-		scriptId,
-		scriptName,
-		status: normalizePythonScriptRunStatus(value.status),
-		startedAt:
-			typeof value.startedAt === "number" && Number.isFinite(value.startedAt) ? value.startedAt : undefined,
-		endedAt: typeof value.endedAt === "number" && Number.isFinite(value.endedAt) ? value.endedAt : undefined,
-		exitCode:
-			typeof value.exitCode === "number" && Number.isFinite(value.exitCode)
-				? value.exitCode
-				: value.exitCode === null
-					? null
-					: undefined,
-		signal: typeof value.signal === "string" ? value.signal : value.signal === null ? null : undefined,
-		stdout: typeof value.stdout === "string" ? value.stdout : undefined,
-		stderr: typeof value.stderr === "string" ? value.stderr : undefined,
-		errorMessage: typeof value.errorMessage === "string" ? value.errorMessage : undefined,
-		resolvedCommand: typeof value.resolvedCommand === "string" ? value.resolvedCommand : undefined,
-	};
-}
-
-function normalizePythonScriptRunnerSettings(value: unknown): PythonScriptRunnerSettings {
-	const rawRunnerSettings = isRecord(value) ? value : {};
-
-	return {
-		uvPath: normalizeString(rawRunnerSettings.uvPath, PYTHON_SCRIPT_RUNNER_DEFAULTS.uvPath),
-		defaultTimeoutMs: normalizePositiveNumber(
-			rawRunnerSettings.defaultTimeoutMs,
-			PYTHON_SCRIPT_RUNNER_DEFAULTS.defaultTimeoutMs
-		),
-		scripts: normalizePythonScriptConfigs(rawRunnerSettings.scripts),
-		lastRun: normalizePythonScriptLastRunRecord(rawRunnerSettings.lastRun),
-	};
-}
-
 export function normalizeSettings(data: unknown): WhyingPluginSettings {
 	const rawSettings = isRecord(data) ? data : {};
 	const rawTabZoom = isRecord(rawSettings.tabZoom) ? rawSettings.tabZoom : {};
@@ -207,7 +76,6 @@ export function normalizeSettings(data: unknown): WhyingPluginSettings {
 			showStatusBar: normalizeBoolean(rawTabZoom.showStatusBar, TAB_ZOOM_DEFAULTS.showStatusBar),
 			zoomRecords: normalizePositiveNumberRecord(rawTabZoom.zoomRecords),
 		},
-		pythonScriptRunner: normalizePythonScriptRunnerSettings(rawSettings.pythonScriptRunner),
 	};
 }
 
@@ -221,7 +89,7 @@ export interface SettingTabContext {
 	saveSettings(): Promise<void>;
 }
 
-type SettingsPageTabId = "features" | "tab-zoom" | "python-scripts";
+type SettingsPageTabId = "features" | "tab-zoom";
 
 interface SettingsPageTabDefinition {
 	id: SettingsPageTabId;
@@ -251,11 +119,6 @@ export class WhyingSettingTab extends PluginSettingTab {
 				id: "tab-zoom",
 				label: strings.tabs["tab-zoom"].label,
 				description: strings.tabs["tab-zoom"].description,
-			},
-			{
-				id: "python-scripts",
-				label: strings.tabs["python-scripts"].label,
-				description: strings.tabs["python-scripts"].description,
 			},
 		];
 	}
@@ -431,22 +294,6 @@ export class WhyingSettingTab extends PluginSettingTab {
 			);
 	}
 
-	private getPythonScriptRunnerFeature(): PythonScriptRunnerFeature | null {
-		const feature = this.ctx.features.find((item) => item.id === PYTHON_SCRIPT_RUNNER_FEATURE_ID);
-		return feature instanceof PythonScriptRunnerFeature ? feature : null;
-	}
-
-	private renderPythonScriptRunnerSettingsSection(containerEl: HTMLElement): void {
-		const strings = getSettingsLocalization();
-		renderPythonScriptRunnerSettings(containerEl, {
-			ctx: this.ctx,
-			feature: this.getPythonScriptRunnerFeature(),
-			strings: strings.pythonScriptRunner,
-			isFeatureEnabled: this.ctx.isFeatureEnabled(PYTHON_SCRIPT_RUNNER_FEATURE_ID),
-			refresh: () => this.display(),
-		});
-	}
-
 	private renderActiveTab(containerEl: HTMLElement): void {
 		switch (this.activeTab) {
 			case "features":
@@ -457,11 +304,6 @@ export class WhyingSettingTab extends PluginSettingTab {
 			case "tab-zoom":
 				this.renderSettingsPanel(containerEl, (panelBodyEl) => {
 					this.renderTabZoomSettingsSection(panelBodyEl);
-				});
-				break;
-			case "python-scripts":
-				this.renderSettingsPanel(containerEl, (panelBodyEl) => {
-					this.renderPythonScriptRunnerSettingsSection(panelBodyEl);
 				});
 				break;
 		}
